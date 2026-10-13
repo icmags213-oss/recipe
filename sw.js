@@ -1,6 +1,6 @@
 /* Caches the app so it opens with no signal. Bump CACHE after any change,
    or browsers keep serving the copy they already have. */
-const CACHE = "recipe-cloud-v10";
+const CACHE = "recipe-cloud-v11";
 const SHELL = [
   './',
   './index.html',
