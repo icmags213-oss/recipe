@@ -10,15 +10,26 @@
   const clone = value => JSON.parse(JSON.stringify(value));
   const panel = document.createElement('section');
   panel.id = 'cloud-account';
-  panel.style.cssText = 'padding:12px;background:var(--side);border-bottom:1px solid var(--rule);font-family:var(--ui)';
-  panel.innerHTML = '<button class="btn" id="cloud-toggle">Cloud account</button> <span id="cloud-status" role="status">On this device</span><div id="cloud-controls" hidden><p>Sign in to save recipes, photos, plans, pantry, shopping lists and settings across devices. Cloud mode requires a connection. Your existing device data stays separate.</p><form id="cloud-login"><label>Email <input name="email" type="email" autocomplete="username" required></label> <label>Password <input name="password" type="password" autocomplete="current-password" minlength="8" required></label> <button class="btn" type="submit">Sign in</button> <button class="btn" type="button" id="cloud-signup">Create account</button></form><button class="btn" id="cloud-local">Use this device</button> <button class="btn" id="cloud-reload">Reload cloud data</button> <button class="btn" id="cloud-import">Copy device data to a cloud account with no recipes</button> <button class="btn" id="cloud-signout">Sign out</button><p id="cloud-message" role="alert"></p></div>';
-  document.body.prepend(panel);
+  panel.style.cssText = 'padding:8px 0;font-family:var(--ui);font-size:12px';
+  panel.innerHTML = '<button class="side-row" id="cloud-toggle" aria-expanded="false" aria-controls="cloud-controls">Cloud account</button> <span id="cloud-status" role="status" style="display:block;padding:0 8px;overflow-wrap:anywhere">On this device</span><div id="cloud-controls" hidden><p>Sign in to save recipes, photos, plans, pantry, shopping lists and settings across devices. Cloud mode requires a connection. Your existing device data stays separate.</p><form id="cloud-login"><label>Email <input name="email" type="email" autocomplete="username" required></label> <label>Password <input name="password" type="password" autocomplete="current-password" minlength="8" required></label> <button class="btn" type="submit">Sign in</button> <button class="btn" type="button" id="cloud-signup">Create account</button></form><button class="btn" id="cloud-local">Use this device</button> <button class="btn" id="cloud-reload">Reload cloud data</button> <button class="btn" id="cloud-import">Copy device data to a cloud account with no recipes</button> <button class="btn" id="cloud-signout">Sign out</button><p id="cloud-message" role="alert"></p></div>';
+  document.getElementById('settings-submenu').append(panel);
+  const style = document.createElement('style');
+  style.textContent = '#cloud-controls label{display:block;margin:8px 0}#cloud-controls input{display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--rule);border-radius:6px;background:var(--list);color:var(--ink)}#cloud-controls .btn{font-size:12px;margin:4px 0;max-width:100%;white-space:normal}';
+  document.head.append(style);
   const $ = id => document.getElementById(id);
   const message = text => { $('cloud-message').textContent = text; };
-  $('cloud-toggle').onclick = () => { $('cloud-controls').hidden = !$('cloud-controls').hidden; };
+  function showControls(open) {
+    $('cloud-controls').hidden = !open;
+    $('cloud-toggle').setAttribute('aria-expanded', String(open));
+    if (open) {
+      $('settings-submenu').hidden = false;
+      $('btn-settings').setAttribute('aria-expanded', 'true');
+    }
+  }
+  $('cloud-toggle').onclick = () => showControls($('cloud-controls').hidden);
   function fail(error) {
     message('Cloud operation failed. Changes were not confirmed saved. Check your connection and reload cloud data before continuing. ' + (error.message || 'Please try again.'));
-    $('cloud-controls').hidden = false;
+    showControls(true);
     throw error;
   }
   async function result(query) {
@@ -142,6 +153,6 @@
     }
   };
   global.addEventListener('unhandledrejection', event => {
-    if (mode === 'cloud') { message('A cloud operation failed. Reload cloud data before continuing; your last change may not be saved.'); $('cloud-controls').hidden = false; }
+    if (mode === 'cloud') { message('A cloud operation failed. Reload cloud data before continuing; your last change may not be saved.'); showControls(true); }
   });
 })(window);
