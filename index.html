@@ -3861,6 +3861,19 @@ body {
       });
     },
 
+    async resetData() {
+      await open();
+      if (memoryOnly) { memory.recipes.clear(); memory.prefs.clear(); return; }
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction(['recipes', 'prefs'], 'readwrite');
+        transaction.objectStore('recipes').clear();
+        transaction.objectStore('prefs').clear();
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      });
+    },
+
     async allRecipes() {
       await open();
       if (memoryOnly) return [...memory.recipes.values()];
