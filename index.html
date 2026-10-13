@@ -3870,7 +3870,7 @@ body {
     async putRecipes(list) {
       await open();
       if (memoryOnly) { list.forEach(r => memory.recipes.set(r.id, r)); return; }
-      await safe('recipes', 'readwrite', s => { list.forEach(r => s.put(r)); });
+      await tx('recipes', 'readwrite', s => { list.forEach(r => s.put(r)); });
     },
 
     async deleteRecipe(id) {
@@ -8512,19 +8512,29 @@ body {
   function makeThumb(dataUrl) {
     return new Promise(resolve => {
       const img = new Image();
-      img.onerror = () => resolve('');
+      let finished = false;
+      const finish = value => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        img.onload = img.onerror = null;
+        img.removeAttribute('src');
+        resolve(value);
+      };
+      const timer = setTimeout(() => finish(''), 10000);
+      img.onerror = () => finish('');
       img.onload = () => {
         try {
           const side = Math.min(img.width, img.height);
+          if (!side) return finish('');
           const c = document.createElement('canvas');
           c.width = c.height = THUMB;
-          c.getContext('2d').drawImage(
-            img,
+          c.getContext('2d').drawImage(img,
             (img.width - side) / 2, (img.height - side) / 2, side, side,
-            0, 0, THUMB, THUMB
-          );
-          resolve(c.toDataURL('image/jpeg', 0.72));
-        } catch (e) { resolve(''); }
+            0, 0, THUMB, THUMB);
+          finish(c.toDataURL('image/jpeg', 0.72));
+          c.width = c.height = 0;
+        } catch (e) { finish(''); }
       };
       img.src = dataUrl;
     });
@@ -8534,7 +8544,7 @@ body {
     let done = 0;
     for (const r of recipes) {
       if (!r.thumb && r.images[0]) r.thumb = await makeThumb(r.images[0]);
-      if (onProgress && ++done % 20 === 0) onProgress(done, recipes.length);
+      if (onProgress) onProgress(++done, recipes.length);
     }
     return recipes;
   }
@@ -8614,38 +8624,53 @@ body {
     return incoming;
   }
 
+  let importRunning = false;
   async function applyImport(recipes, mode, problems, gone) {
-    carryOver(recipes);
-
-    if (mode === 'replace' && gone && gone.length) {
-      for (const r of gone) await Store.deleteRecipe(r.id);
-      const drop = new Set(gone.map(r => r.id));
-      state.recipes = state.recipes.filter(r => !drop.has(r.id));
-      // and take them off the calendar, so no day points at nothing
-      Object.keys(state.plan).forEach(k => {
-        state.plan[k] = state.plan[k].filter(id => !drop.has(id));
-        if (!state.plan[k].length) delete state.plan[k];
-      });
-      await Store.pref('plan', state.plan);
+    if (importRunning) { toast('An import is already running.', 5000); return; }
+    importRunning = true;
+    let saved = 0;
+    try {
+      await Store.ready();
+      if (Store.isMemoryOnly) throw new Error('Browser storage is unavailable. Recipes cannot be saved permanently.');
+      carryOver(recipes);
+      const byId = new Map(state.recipes.map(r => [r.id, r]));
+      for (const recipe of recipes) {
+        toast(`Preparing thumbnail ${saved + 1} of ${recipes.length}…`, 300000);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        if (!recipe.thumb && recipe.images[0]) recipe.thumb = await makeThumb(recipe.images[0]);
+        toast(`Saving recipe ${saved + 1} of ${recipes.length}… Keep the app open.`, 300000);
+        await Store.putRecipes([recipe]);
+        byId.set(recipe.id, recipe);
+        state.recipes = [...byId.values()];
+        saved++;
+      }
+      // Replace removes old entries only after every incoming recipe is saved.
+      if (mode === 'replace' && gone && gone.length) {
+        toast('Finishing library replacement…', 300000);
+        for (const recipe of gone) {
+          await Store.deleteRecipe(recipe.id);
+          byId.delete(recipe.id);
+        }
+        state.recipes = [...byId.values()];
+        const drop = new Set(gone.map(r => r.id));
+        const plan = JSON.parse(JSON.stringify(state.plan));
+        Object.keys(plan).forEach(key => {
+          plan[key] = plan[key].filter(id => !drop.has(id));
+          if (!plan[key].length) delete plan[key];
+        });
+        await Store.pref('plan', plan);
+        state.plan = plan;
+      }
+      toast(`Library saved — ${saved} of ${recipes.length} recipes.` +
+        (problems && problems.length ? ` ${problems.length} file(s) skipped.` : ''), 9000);
+    } catch (error) {
+      console.error('Import stopped:', error);
+      toast(`Import stopped. ${saved} of ${recipes.length} recipes saved. ${error.message || 'Storage failed.'} Re-import the same file to retry.`, 300000);
+    } finally {
+      importRunning = false;
+      renderSidebar();
+      renderList();
     }
-
-    const byId = new Map(state.recipes.map(r => [r.id, r]));
-    recipes.forEach(r => byId.set(r.id, r));
-    state.recipes = [...byId.values()];
-
-    renderSidebar();
-    renderList();
-    toast(`Read ${recipes.length} recipe${recipes.length === 1 ? '' : 's'}. Preparing thumbnails…`, 300000);
-
-    await buildThumbs(recipes, (n, total) =>
-      toast(`Preparing thumbnails… ${n} of ${total}`, 300000));
-
-    await Store.putRecipes(recipes);
-    renderList();
-
-    const removed = mode === 'replace' && gone && gone.length ? `, ${gone.length} removed` : '';
-    toast(`Library updated — ${recipes.length} recipes${removed}.` +
-      (problems && problems.length ? ` ${problems.length} file(s) skipped.` : ''), 4200);
   }
 
   /* ─────────── timers ─────────── */
