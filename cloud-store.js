@@ -45,10 +45,14 @@
   }
   async function pages(table) {
     const rows = [];
-    for (let start = 0; ; start += 500) {
-      const batch = await result(client.from(table).select('*').eq('user_id', userId).order('id').range(start, start + 499));
+    // Previously saved full-size photos can exceed database response time limits.
+    // Fetch one row at a time until re-import replaces those large photo copies.
+    const pageSize = 1;
+    for (let start = 0; ; start += pageSize) {
+      if (table === 'recipe_entries') $('cloud-status').textContent = `Loading cloud recipes… ${rows.length} loaded`;
+      const batch = await result(client.from(table).select('*').eq('user_id', userId).order('id').range(start, start + pageSize - 1));
       rows.push(...batch);
-      if (batch.length < 500) return rows;
+      if (batch.length < pageSize) return rows;
     }
   }
   async function prepareRecipe(item) {
