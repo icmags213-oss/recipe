@@ -47,7 +47,7 @@ test('cloud reads paginate beyond the API limit and writes are scoped to the own
   assert.equal((await h.context.Store.allRecipes()).length,1100);
   await h.context.Store.putRecipes([{id:'new',title:'Pasta'}]);
   const write=h.calls.find(x=>x.upsertArgs);
-  assert.equal(write.upsertArgs[0][0][0].user_id,'A');
+  assert.equal(write.upsertArgs[0][0].user_id,'A');
   await h.context.Store.pref('plan',{today:['new']});
   assert.equal((await h.context.Store.pref('plan')).today[0],'new');
   await h.context.Store.deleteRecipe('new');
