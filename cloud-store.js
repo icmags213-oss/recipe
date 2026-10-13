@@ -216,4 +216,7 @@
   global.addEventListener('unhandledrejection', event => {
     if (mode === 'cloud') { message('A cloud operation failed. Reload cloud data before continuing; your last change may not be saved.'); showControls(true); }
   });
+  const cookbookScript = document.createElement('script');
+  cookbookScript.src = 'brendens-cookbook.js';
+  document.head.append(cookbookScript);
 })(window);
