@@ -14,7 +14,7 @@
   panel.innerHTML = '<button class="side-row" id="cloud-toggle" aria-expanded="false" aria-controls="cloud-controls">Cloud account</button> <span id="cloud-status" role="status" style="display:block;padding:0 8px;overflow-wrap:anywhere">On this device</span><div id="cloud-controls" hidden><p>Sign in to save recipes, photos, plans, pantry, shopping lists and settings across devices. Cloud mode requires a connection. Your existing device data stays separate.</p><form id="cloud-login"><label>Email <input name="email" type="email" autocomplete="username" required></label> <label>Password <input name="password" type="password" autocomplete="current-password" minlength="8" required></label> <button class="btn" type="submit">Sign in</button> <button class="btn" type="button" id="cloud-signup">Create account</button></form><button class="btn" id="cloud-local">Use this device</button> <button class="btn" id="cloud-reload">Reload cloud data</button> <button class="btn" id="cloud-import">Copy device data to a cloud account with no recipes</button> <button class="btn" id="cloud-signout">Sign out</button><p id="cloud-message" role="alert"></p></div>';
   document.getElementById('settings-submenu').append(panel);
   const style = document.createElement('style');
-  style.textContent = '#cloud-controls label{display:block;margin:8px 0}#cloud-controls input{display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--rule);border-radius:6px;background:var(--list);color:var(--ink)}#cloud-controls .btn{font-size:12px;margin:4px 0;max-width:100%;white-space:normal}';
+  style.textContent = '#side{overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + env(safe-area-inset-bottom))}#side > *{flex-shrink:0}#cloud-controls{padding-bottom:16px}#cloud-controls label{display:block;margin:8px 0}#cloud-controls input{display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--rule);border-radius:6px;background:var(--list);color:var(--ink)}#cloud-controls .btn{font-size:12px;margin:4px 0;max-width:100%;white-space:normal}';
   document.head.append(style);
   const $ = id => document.getElementById(id);
   const message = text => { $('cloud-message').textContent = text; };
@@ -24,6 +24,7 @@
     if (open) {
       $('settings-submenu').hidden = false;
       $('btn-settings').setAttribute('aria-expanded', 'true');
+      panel.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
     }
   }
   $('cloud-toggle').onclick = () => showControls($('cloud-controls').hidden);
