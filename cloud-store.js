@@ -11,7 +11,7 @@
   const panel = document.createElement('section');
   panel.id = 'cloud-account';
   panel.style.cssText = 'padding:8px 0;font-family:var(--ui);font-size:12px';
-  panel.innerHTML = '<button class="side-row" id="cloud-toggle" aria-expanded="false" aria-controls="cloud-controls">Cloud account</button> <span id="cloud-status" role="status" style="display:block;padding:0 8px;overflow-wrap:anywhere">On this device</span><div id="cloud-controls" hidden><p>Sign in to save recipes, photos, plans, pantry, shopping lists and settings across devices. Cloud mode requires a connection. Your existing device data stays separate.</p><form id="cloud-login"><label>Email <input name="email" type="email" autocomplete="username" required></label> <label>Password <input name="password" type="password" autocomplete="current-password" minlength="8" required></label> <button class="btn" type="submit">Sign in</button> <button class="btn" type="button" id="cloud-signup">Create account</button></form><button class="btn" id="cloud-local">Use this device</button> <button class="btn" id="cloud-reload">Reload cloud data</button> <button class="btn" id="cloud-import">Copy device data to a cloud account with no recipes</button> <button class="btn" id="cloud-signout">Sign out</button><p id="cloud-message" role="alert"></p></div>';
+  panel.innerHTML = '<button class="side-row" id="cloud-toggle" aria-expanded="false" aria-controls="cloud-controls">Cloud account</button> <span id="cloud-status" role="status" style="display:block;padding:0 8px;overflow-wrap:anywhere">On this device</span><div id="cloud-controls" hidden><p>Sign in to save recipes, photos, plans, pantry, shopping lists and settings across devices. Cloud mode requires a connection. Your existing device data stays separate.</p><form id="cloud-login"><label>Email <input name="email" type="email" autocomplete="username" required></label> <label>Password <input name="password" type="password" autocomplete="current-password" minlength="8" required></label> <button class="btn" type="submit">Sign in</button> <button class="btn" type="button" id="cloud-signup">Create account</button></form><button class="btn" id="cloud-local">Use this device</button> <button class="btn" id="cloud-reload">Reload cloud data</button> <button class="btn" id="cloud-import">Copy device data to cloud</button> <button class="btn" id="cloud-signout">Sign out</button><p id="cloud-message" role="alert"></p></div>';
   document.getElementById('settings-submenu').append(panel);
   const style = document.createElement('style');
   style.textContent = '#side{overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + env(safe-area-inset-bottom))}#side > *{flex-shrink:0}#cloud-controls{padding-bottom:16px}#cloud-controls label{display:block;margin:8px 0}#cloud-controls input{display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--rule);border-radius:6px;background:var(--list);color:var(--ink)}#cloud-controls .btn{font-size:12px;margin:4px 0;max-width:100%;white-space:normal}';
@@ -34,7 +34,12 @@
     throw error;
   }
   async function result(query) {
-    const response = await query;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 45000);
+    let response;
+    try { response = await (typeof query.abortSignal === 'function' ? query.abortSignal(controller.signal) : query); }
+    catch (error) { return fail(error); }
+    finally { clearTimeout(timer); }
     if (response.error) return fail(response.error);
     return response.data;
   }
@@ -102,12 +107,22 @@
     $('cloud-local').onclick = () => { sessionStorage.setItem('recipe-device-mode', '1'); location.reload(); };
     $('cloud-reload').onclick = () => location.reload();
     $('cloud-import').onclick = async () => {
-      if (!confirm('Copy the data saved in this browser into this signed-in account? This only works when the cloud has no recipes. Existing cloud settings are kept. The device copy will be kept.')) return;
+      if (!confirm('Copy the data saved in this browser into this signed-in account? Only missing recipes and settings will be copied. Existing cloud data and the device copy will be kept. You can retry if interrupted.')) return;
       const button = $('cloud-import');
       button.disabled = true;
       try {
+        const deviceRecipes = await local.allRecipes();
         const devicePrefs = await local.allPrefs();
-        await result(client.rpc('recipe_import_device', { entries: await local.allRecipes(), preferences: devicePrefs }));
+        const uid = await owner();
+        for (let i = 0; i < deviceRecipes.length; i++) {
+          message(`Copying recipe ${i + 1} of ${deviceRecipes.length}. Keep the app open.`);
+          const item = deviceRecipes[i];
+          await result(client.from('recipe_entries').upsert({ user_id: uid, id: String(item.id), data: item }, { onConflict: 'user_id,id', ignoreDuplicates: true }));
+        }
+        for (const [id, data] of Object.entries(devicePrefs)) {
+          message('Copying device settings…');
+          await result(client.from('recipe_preferences').upsert({ user_id: uid, id, data }, { onConflict: 'user_id,id', ignoreDuplicates: true }));
+        }
         location.reload();
       } catch (error) { message(error.message); button.disabled = false; }
     };
