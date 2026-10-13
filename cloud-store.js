@@ -205,6 +205,13 @@
       await result(client.from('recipe_entries').delete().eq('user_id', await owner()));
       recipes.clear();
     },
+    async resetData() {
+      await ready();
+      if (mode === 'local') return local.resetData();
+      await owner();
+      await result(client.rpc('recipe_reset_library'));
+      recipes.clear(); prefs.clear();
+    },
     async pref(key, value) {
       await ready();
       if (mode === 'local') return local.pref(key, value);
@@ -216,6 +223,19 @@
   global.addEventListener('unhandledrejection', event => {
     if (mode === 'cloud') { message('A cloud operation failed. Reload cloud data before continuing; your last change may not be saved.'); showControls(true); }
   });
+  const resetSection = document.createElement('section');
+  resetSection.innerHTML = '<button class="side-row" id="reset-library" style="color:var(--danger)">Reset library</button><p id="reset-status" role="status" style="font-size:12px;padding:0 8px"></p>';
+  $('settings-submenu').append(resetSection);
+  $('reset-library').onclick = async () => {
+    await ready();
+    const target = mode === 'cloud' ? 'your signed-in cloud account, including on other devices' : 'this device library';
+    const answer = prompt(`This permanently deletes all recipes, photos, meal plans, pantry items, shopping lists, restaurants and settings from ${target}. Your login account and the bundled Brendens Cookbook are kept. Export anything you want to keep first. Type RESET to start fresh.`);
+    if (answer !== 'RESET') return;
+    $('reset-library').disabled = true;
+    $('reset-status').textContent = 'Resetting library…';
+    try { await global.Store.resetData(); location.reload(); }
+    catch (error) { $('reset-status').textContent = 'Reset failed. ' + error.message; $('reset-library').disabled = false; }
+  };
   const cookbookScript = document.createElement('script');
   cookbookScript.src = 'brendens-cookbook.js';
   document.head.append(cookbookScript);
