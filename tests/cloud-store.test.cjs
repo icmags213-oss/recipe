@@ -5,7 +5,7 @@ const vm = require('node:vm');
 function harness({configured = true, failure = false, signedIn = true, total = 0} = {}) {
   const elements = new Map();
   const element = id => {
-    if (!elements.has(id)) elements.set(id, { hidden: false, style: {}, elements: {password: {}}, reportValidity: () => true });
+    if (!elements.has(id)) elements.set(id, { hidden: false, style: {}, append() {}, setAttribute() {}, elements: {password: {}}, reportValidity: () => true });
     return elements.get(id);
   };
   const calls = [];
@@ -30,7 +30,7 @@ function harness({configured = true, failure = false, signedIn = true, total = 0
     }
   };
   const localCalls = [];
-  const context = {document: {createElement: () => element('panel'), body: {prepend() {}}, getElementById: element}, sessionStorage: {getItem:()=>null}, location: {reload(){context.reloaded = true;}}, console, Store: {ready: async()=>{}, allRecipes:async()=>[{id:'local'}],putRecipes:async rows=>localCalls.push(rows)}, RECIPE_SUPABASE:configured?{url:'https://example.supabase.co',publishableKey:'sb_publishable_test'}:{}, supabase: {createClient:()=>client}, addEventListener() {}};
+  const context = {AbortController, setTimeout, clearTimeout, document: {createElement: () => element('panel'), body: {prepend() {}}, head: {append() {}}, getElementById: element}, sessionStorage: {getItem:()=>null}, location: {reload(){context.reloaded = true;}}, console, Store: {ready: async()=>{}, allRecipes:async()=>[{id:'local'}],putRecipes:async rows=>localCalls.push(rows)}, RECIPE_SUPABASE:configured?{url:'https://example.supabase.co',publishableKey:'sb_publishable_test'}:{}, supabase: {createClient:()=>client}, addEventListener() {}};
   context.window=context;
   vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../cloud-store.js'),'utf8'),context);
   return {context,calls,localCalls,elements,authChange:(...args)=>authHandler(...args)};
