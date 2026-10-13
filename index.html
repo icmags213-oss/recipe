@@ -3844,6 +3844,23 @@ body {
 
     async ready() { await open(); },
 
+    async allPrefs() {
+      await open();
+      if (memoryOnly) return Object.fromEntries(memory.prefs);
+      return new Promise((resolve, reject) => {
+        const values = {};
+        const transaction = db.transaction('prefs', 'readonly');
+        const request = transaction.objectStore('prefs').openCursor();
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) { values[cursor.key] = cursor.value; cursor.continue(); }
+        };
+        transaction.oncomplete = () => resolve(values);
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      });
+    },
+
     async allRecipes() {
       await open();
       if (memoryOnly) return [...memory.recipes.values()];
@@ -3884,6 +3901,9 @@ body {
 })(window);
 
 </script>
+<script src="vendor/supabase-2.117.3.js"></script>
+<script src="supabase-config.js"></script>
+<script src="cloud-store.js"></script>
 <script>
 /* ============================================================
    plan.js — which recipe on which day.
@@ -6067,9 +6087,9 @@ body {
 
   async function saveEdited(recipe, wasEditing) {
     recipe.thumb = recipe.images[0] ? await makeThumb(recipe.images[0]) : '';
+    await Store.putRecipes([recipe]);
     const i = state.recipes.findIndex(x => x.id === recipe.id);
     if (i >= 0) state.recipes[i] = recipe; else state.recipes.push(recipe);
-    await Store.putRecipes([recipe]);
     await syncKitchenRecipeLibrary();
     renderSidebar();
     renderList();

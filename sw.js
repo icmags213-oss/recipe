@@ -1,9 +1,12 @@
 /* Caches the app so it opens with no signal. Bump CACHE after any change,
    or browsers keep serving the copy they already have. */
-const CACHE = "recipe-v144c";
+const CACHE = "recipe-cloud-v3";
 const SHELL = [
   './',
   './index.html',
+  './cloud-store.js',
+  './supabase-config.js',
+  './vendor/supabase-2.117.3.js',
   './manifest.webmanifest',
   './healthy-kitchen-vegetables.webp',
   './icons/icon-192.png',
@@ -22,6 +25,9 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  const shellUrls = SHELL.map(path => new URL(path, self.registration.scope).href);
+  if (url.origin !== self.location.origin || !shellUrls.includes(url.href)) return;
   e.respondWith(caches.match(e.request).then(hit => {
     const live = fetch(e.request).then(res => {
       if (res && res.status === 200) {

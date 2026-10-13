@@ -1,6 +1,6 @@
 # Recipe
 
-A private recipe box that runs entirely in the browser. It imports Mela
+A private recipe box that runs in the browser, with optional Supabase cloud storage. It imports Mela
 exports, scales by servings, tracks what is in the fridge, freezer and pantry,
 plans the week, and works offline.
 
@@ -8,9 +8,11 @@ plans the week, and works offline.
 
 ## What it is
 
-One HTML file. No build step, no framework, no server, and no account. Every
-recipe, photo and shopping list lives in your browser's own storage on your
-device — nothing is uploaded anywhere.
+No build step or framework. Device mode keeps recipes, photos and shopping lists
+in the browser and works offline. Optional cloud mode uses a confirmed Supabase
+account to save recipes and app data across devices. Each account has a private
+library protected by row-level security. See [SUPABASE.md](SUPABASE.md) to configure
+the separate Recipe project and deploy. Cloud mode requires a connection.
 
 ## Files
 
@@ -35,5 +37,6 @@ icon and opens without browser chrome.
 
 ## Updating it later
 
-Replace `index.html` with a newer build and commit. Your recipes are stored in
-the browser, not in the repository, so they survive an update untouched.
+Deploy the complete app files together and bump the cache name in `sw.js` after
+updates. Device recipes remain in the original browser database; cloud recipes
+remain in Supabase. Neither library is stored in this repository.

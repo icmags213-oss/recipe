@@ -1,0 +1,12 @@
+{
+  "dependencies": [
+    {
+      "name": "@supabase/supabase-js",
+      "version": "2.117.3",
+      "file": "supabase-2.117.3.js",
+      "source": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js",
+      "sha256": "d6a5c4414a5d4ce646d9c1de223aa7067d3ff664c15394ffeb7fcffc763354a3",
+      "license": "MIT"
+    }
+  ]
+}
