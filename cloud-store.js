@@ -51,6 +51,44 @@
       if (batch.length < 500) return rows;
     }
   }
+  async function prepareRecipe(item) {
+    const images = [];
+    for (const source of item.images || []) {
+      if (typeof source !== 'string' || source.length <= 400000 || !source.startsWith('data:image/')) {
+        images.push(source); continue;
+      }
+      images.push(await new Promise((resolve, reject) => {
+        const image = new Image();
+        const timer = setTimeout(() => finish(new Error('Photo preparation timed out. Your original export is unchanged.')), 15000);
+        function finish(error, value) {
+          clearTimeout(timer);
+          image.onload = image.onerror = null;
+          image.removeAttribute('src');
+          if (error) reject(error); else resolve(value);
+        }
+        image.onerror = () => finish(new Error('Could not prepare a photo. Your original export is unchanged.'));
+        image.onload = () => {
+          let canvas;
+          try {
+            const ratio = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+            canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+            canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#fff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            let encoded = canvas.toDataURL('image/jpeg', 0.8);
+            if (encoded.length > 600000) encoded = canvas.toDataURL('image/jpeg', 0.6);
+            finish(null, encoded.length < source.length ? encoded : source);
+          } catch (error) { finish(error); }
+          finally { if (canvas) canvas.width = canvas.height = 0; }
+        };
+        image.src = source;
+      }));
+    }
+    return { ...item, images };
+  }
   async function setup() {
     if (!config.url || !config.publishableKey) {
       message('Cloud storage is not configured yet. Device storage is available.');
@@ -116,7 +154,7 @@
         const uid = await owner();
         for (let i = 0; i < deviceRecipes.length; i++) {
           message(`Copying recipe ${i + 1} of ${deviceRecipes.length}. Keep the app open.`);
-          const item = deviceRecipes[i];
+          const item = await prepareRecipe(deviceRecipes[i]);
           await result(client.from('recipe_entries').upsert({ user_id: uid, id: String(item.id), data: item }, { onConflict: 'user_id,id', ignoreDuplicates: true }));
         }
         for (const [id, data] of Object.entries(devicePrefs)) {
@@ -145,8 +183,11 @@
       if (mode === 'local') return local.putRecipes(list);
       const uid = await owner();
       if (!list.length) return;
-      await result(client.from('recipe_entries').upsert(list.map(item => ({ user_id: uid, id: String(item.id), data: item })), { onConflict: 'user_id,id' }));
-      list.forEach(item => recipes.set(String(item.id), clone(item)));
+      for (const source of list) {
+        const item = await prepareRecipe(source);
+        await result(client.from('recipe_entries').upsert({ user_id: uid, id: String(item.id), data: item }, { onConflict: 'user_id,id' }));
+        recipes.set(String(item.id), clone(item));
+      }
     },
     async deleteRecipe(id) {
       await ready();
