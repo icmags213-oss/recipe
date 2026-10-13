@@ -23,7 +23,7 @@ function harness({configured = true, failure = false, signedIn = true, total = 0
         calls.push(query);
         if (failure) return Promise.resolve({error: new Error('offline')}).then(resolve,reject);
         const start = query.rangeArgs?.[0][0] || 0;
-        const data = table === 'recipe_entries' && query.selectArgs ? Array.from({length: Math.min(500, Math.max(0,total-start))}, (_, i) => ({id: String(i+start), data: {id: String(i+start)}})) : [];
+        const data = table === 'recipe_entries' && query.selectArgs ? Array.from({length: Math.min((query.rangeArgs?.[0][1] ?? (start + 499)) - start + 1, Math.max(0,total-start))}, (_, i) => ({id: String(i+start), data: {id: String(i+start)}})) : [];
         return Promise.resolve({data}).then(resolve,reject);
       };
       return query;
