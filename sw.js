@@ -1,10 +1,11 @@
 /* Caches the app so it opens with no signal. Bump CACHE after any change,
    or browsers keep serving the copy they already have. */
-const CACHE = "recipe-cloud-v11";
+const CACHE = "recipe-cloud-v12";
 const SHELL = [
   './',
   './index.html',
   './cloud-store.js',
+  './device-library.js',
   './brendens-cookbook.js',
   './supabase-config.js',
   './vendor/supabase-2.117.3.js',
